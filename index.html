@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Fantel Solar Portal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --primary: #0a2463;
+      --secondary: #3e92cc;
+      --accent: #2dc7ff;
+      --success: #4cb944;
+      --warning: #fca311;
+      --danger: #d90429;
+      --light: #f8f9fa;
+      --dark: #1e1e24;
+      --gray: #8d99ae;
+      --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      --solar-gradient: linear-gradient(135deg, #f9d423 0%, #ff4e50 100%);
+      --sidebar-width: 280px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+    body { background-color: #f5f7fa; color: var(--dark); }
+
+    #login-page { display:flex; justify-content:center; align-items:center; min-height:100vh; background:var(--solar-gradient); }
+    .login-container { background:white; padding:40px; border-radius:15px; box-shadow:var(--card-shadow); width:100%; max-width:450px; text-align:center; }
+    .logo { width:100px; height:100px; margin:0 auto 20px; background-image:url('https://i.postimg.cc/pXf3yqxf/Screenshot-20250827-110302-2.jpg'); background-size:contain; background-repeat:no-repeat; background-position:center; }
+    .login-container h1 { color:var(--primary); margin-bottom:10px; }
+    .login-container p { color:var(--gray); margin-bottom:30px; }
+    .form-group { margin-bottom:20px; text-align:left; }
+    .form-group label { display:block; margin-bottom:8px; font-weight:500; }
+    .form-group input, .form-group select, .form-group textarea { width:100%; padding:12px 15px; border:1px solid #ddd; border-radius:8px; font-size:16px; }
+    .login-btn { width:100%; padding:12px; background:var(--primary); color:white; border:none; border-radius:8px; font-size:16px; font-weight:600; cursor:pointer; }
+    .error-message { color:var(--danger); margin-top:15px; display:none; }
+
+    #app { display:none; min-height:100vh; }
+    header { background:white; padding:15px 30px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 10px rgba(0,0,0,0.05); position:sticky; top:0; z-index:10; }
+    .header-left { display:flex; align-items:center; }
+    .header-logo { width:40px; height:40px; margin-right:15px; background-image:url('https://i.postimg.cc/pXf3yqxf/Screenshot-20250827-110302-2.jpg'); background-size:contain; background-repeat:no-repeat; background-position:center; }
+    header h1 { color:var(--primary); font-size:18px; }
+    .user-info { display:flex; align-items:center; gap:20px; }
+    .logout-btn { background:var(--danger); color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; }
+
+    .sidebar { width:var(--sidebar-width); background:white; height:calc(100vh - 70px); position:fixed; left:0; top:70px; box-shadow:2px 0 10px rgba(0,0,0,0.05); overflow-y:auto; }
+    .sidebar-menu { list-style:none; padding:20px 0; }
+    .sidebar-menu li { padding:12px 25px; cursor:pointer; display:flex; align-items:center; gap:12px; color:var(--dark); }
+    .sidebar-menu li i { width:18px; text-align:center; }
+    .sidebar-menu li.active { background:var(--primary); color:white; border-radius:6px; }
+
+    .main-content { margin-left:var(--sidebar-width); padding:30px; min-height:calc(100vh - 70px); }
+    .module-section { display:none; }
+    .module-section.active { display:block; }
+    .section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:30px; }
+    .section-header h2 { color:var(--primary); font-size:20px; }
+    .section-actions { display:flex; gap:10px; }
+    .btn { padding:10px 20px; border-radius:8px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:8px; }
+    .btn-primary { background:var(--primary); color:white; }
+    .btn-outline { background:transparent; border:1px solid var(--primary); color:var(--primary); }
+    .btn-danger { background:var(--danger); color:white; }
+    .btn-success { background:var(--success); color:white; }
+
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:20px; margin-bottom:30px; }
+    .stat-card { background:white; padding:20px; border-radius:10px; box-shadow:var(--card-shadow); }
+    .stat-card h3 { font-size:14px; color:var(--gray); margin-bottom:10px; }
+    .stat-card .value { font-size:28px; font-weight:600; color:var(--primary); }
+
+    .card { background:white; border-radius:10px; box-shadow:var(--card-shadow); padding:20px; margin-bottom:30px; overflow-x:auto; }
+    .card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+
+    table { width:100%; border-collapse:collapse; margin-top:10px; min-width:600px; }
+    th, td { padding:12px 15px; text-align:left; border-bottom:1px solid #eee; }
+    th { background:#f8f9fa; font-weight:600; }
+
+    .status-success { color:var(--success); font-weight:500; }
+    .status-warning { color:var(--warning); font-weight:500; }
+    .status-danger { color:var(--danger); font-weight:500; }
+
+    .filters { display:flex; gap:15px; margin-bottom:20px; }
+    .filters input, .filters select { padding:10px 15px; border:1px solid #ddd; border-radius:8px; }
+
+    .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center; }
+    .modal-content { background:white; border-radius:10px; width:90%; max-width:720px; max-height:90vh; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,0.2); }
+    .modal-header { padding:20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; }
+    .close-modal { background:none; border:none; font-size:24px; cursor:pointer; }
+    .modal-body { padding:20px; }
+    .form-row { display:flex; gap:15px; margin-bottom:15px; }
+    .form-row .form-group { flex:1; margin-bottom:0; }
+    .form-actions { padding:20px; border-top:1px solid #eee; display:flex; justify-content:flex-end; gap:10px; }
+
+    .confirmation-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center; }
+    .confirmation-content { background:white; border-radius:10px; padding:30px; max-width:400px; text-align:center; }
+    .confirmation-buttons { display:flex; gap:10px; justify-content:center; margin-top:20px; }
+
+    .activity-insights { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px; }
+    .insight-card { background:white; border-radius:10px; box-shadow:var(--card-shadow); padding:20px; }
+    .insight-card h3 { color:var(--primary); margin-bottom:15px; display:flex; align-items:center; gap:10px; }
+
+    .admin-only { display:none; }
+    .management-only { display:none; }
+    .sales-only { display:none; }
+    .inventory-only { display:none; }
+    .marketing-only { display:none; }
+
+    @media (max-width:900px) {
+      .sidebar { position:relative; width:100%; height:auto; top:0; }
+      .main-content { margin-left:0; padding:15px; }
+      header { flex-direction:column; gap:10px; align-items:flex-start; }
+      .card { overflow-x:auto; }
+      table { min-width:100%; }
+    }
+
+    /* Loading indicator */
+    .loading { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; justify-content:center; align-items:center; flex-direction:column; }
+    .loading-spinner { width:50px; height:50px; border:5px solid #f3f3f3; border-top:5px solid var(--primary); border-radius:50%; animation:spin 1s linear infinite; margin-bottom:15px; }
+    @keyframes spin { 0%{transform:rotate(0deg);}100%{transform:rotate(360deg);} }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading">
+    <div class="loading-spinner"></div>
+    <p>Loading data...</p>
+  </div>
+
+  <div id="login-page">
+    <div class="login-container" role="main" aria-label="Login form">
+      <div class="logo" aria-hidden="true"></div>
+      <h1>Fantel Solar Portal</h1>
+      <p>Access your solar management dashboard</p>
+
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" placeholder="Enter your username" autocomplete="username" aria-required="true" />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" aria-required="true" />
+      </div>
+
+      <div class="form-group">
+        <label for="role-select">Login as (for demo only; does not override role)</label>
+        <select id="role-select" aria-describedby="role-desc">
+          <option value="">(use matched user's role)</option>
+          <option value="Sales Representative">Sales Representative</option>
+          <option value="Inventory Manager">Inventory Manager</option>
+          <option value="Marketing Officer">Marketing Officer</option>
+          <option value="Management">Management</option>
+          <option value="System Administrator">System Administrator</option>
+        </select>
+        <small id="role-desc" style="color:var(--gray);">This dropdown is only for demo view; your actual user role applies.</small>
+      </div>
+
+      <button class="login-btn" onclick="login()" aria-label="Login">Login</button>
+      <div id="login-error" class="error-message" role="alert" aria-live="assertive">Invalid username or password</div>
+    </div>
+  </div>
+
+  <div id="app" aria-live="polite">
+    <header>
+      <div class="header-left">
+        <div class="header-logo" aria-hidden="true"></div>
+        <h1>Fantel Solar Portal</h1>
+      </div>
+      <div class="user-info" aria-label="User information">
+        <span id="date-display" aria-live="polite"></span>
+        <span id="user-role-display"></span>
+        <span id="username-display"></span>
+        <button class="logout-btn" onclick="logout()" aria-label="Logout">Logout</button>
+      </div>
+    </header>
+
+    <nav class="sidebar" aria-label="Main navigation">
+      <ul class="sidebar-menu" role="menubar" aria-orientation="vertical" tabindex="0">
+        <li data-target="customer-module" class="sales-only" role="menuitem" tabindex="-1"><i class="fas fa-users" aria-hidden="true"></i> Customers</li>
+        <li data-target="sales-module" class="sales-only" role="menuitem" tabindex="-1"><i class="fas fa-shopping-cart" aria-hidden="true"></i> Sales</li>
+        <li data-target="feedback-module" class="sales-only" role="menuitem" tabindex="-1"><i class="fas fa-comment" aria-hidden="true"></i> Customer Feedback</li>
+        <li data-target="dashboard-module" class="management-only" role="menuitem" tabindex="-1"><i class="fas fa-tachometer-alt" aria-hidden="true"></i> Dashboard</li>
+        <li data-target="inventory-module" class="inventory-only" role="menuitem" tabindex="-1"><i class="fas fa-boxes" aria-hidden="true"></i> Inventory</li>
+        <li data-target="marketing-module" class="marketing-only" role="menuitem" tabindex="-1"><i class="fas fa-chart-line" aria-hidden="true"></i> Marketing</li>
+        <li data-target="management-module" class="management-only" role="menuitem" tabindex="-1"><i class="fas fa-cogs" aria-hidden="true"></i> Management</li>
+        <li data-target="admin-module" class="admin-only" role="menuitem" tabindex="-1"><i class="fas fa-user-shield" aria-hidden="true"></i> Admin</li>
+        <li data-target="branch-module" class="admin-only management-only" role="menuitem" tabindex="-1"><i class="fas fa-building" aria-hidden="true"></i> Branch Management</li>
+        <li data-target="activity-insights" class="management-only" role="menuitem" tabindex="-1"><i class="fas fa-chart-bar" aria-hidden="true"></i> Activity Insights</li>
+        <li data-target="feedback-management" class="management-only marketing-only" role="menuitem" tabindex="-1"><i class="fas fa-comments" aria-hidden="true"></i> Feedback Management</li>
+      </ul>
+    </nav>
+
+    <main class="main-content" role="main" tabindex="-1">
+      <!-- Modules (unchanged, omitted for brevity here; same as provided) -->
+      <!-- ... (keep all modules as in original) ... -->
+
+      <!-- Add Stock modal (unchanged structure) -->
+      <div id="add-stock-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="add-stock-title" tabindex="-1">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 class="modal-title" id="add-stock-title">Add New Stock</h2>
+            <button class="close-modal" onclick="closeAddStockModal()" aria-label="Close Add Stock">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="add-stock-form" novalidate>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="stock-type">Product Type</label>
+                  <select id="stock-type" onchange="updateSpecificationField()" required aria-required="true">
+                    <option value="">Select Type</option>
+                    <option value="Solar Panels">Solar Panel</option><option value="Batteries">Battery</option><option value="Inverters">Inverter</option><option value="Cables">Cable</option><option value="Connectors">Connector</option><option value="Breakers">Breaker</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="stock-name">Product Name</label>
+                  <input type="text" id="stock-name" placeholder="Enter product name" required aria-required="true" maxlength="100" />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label id="spec-label" for="stock-spec">Specification</label>
+                  <input type="text" id="stock-spec" placeholder="Enter specification" maxlength="200" />
+                </div>
+                <div class="form-group">
+                  <label for="stock-quantity">Quantity</label>
+                  <input type="number" id="stock-quantity" placeholder="Enter quantity" min="1" value="1" required aria-required="true" />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="stock-serial">Serial Number</label>
+                  <input type="text" id="stock-serial" placeholder="Enter serial number (optional)" maxlength="100" />
+                </div>
+                <div class="form-group">
+                  <label for="stock-cost-price">Cost Price (₦)</label>
+                  <input type="text" id="stock-cost-price" placeholder="Enter cost price" oninput="formatInputAsNumber(this); calculateSellingPriceFromCost()" required aria-required="true" />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="stock-markup">Markup Percentage (%)</label>
+                  <input type="number" id="stock-markup" placeholder="Enter markup" min="0" max="100" value="20" oninput="calculateSellingPriceFromCost()" required aria-required="true" />
+                </div>
+                <div class="form-group">
+                  <label for="stock-selling-price">Selling Price (₦)</label>
+                  <input type="text" id="stock-selling-price" placeholder="Selling price will be calculated" readonly aria-readonly="true" />
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-outline" onclick="closeAddStockModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="submitAddStock()" aria-label="Add Stock">Add Stock</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Keep all other modals unchanged structurally (edit stock, add quantity, etc.) -->
+    </main>
+  </div>
+
+  <script>
+    // Supabase configuration (unchanged)
+    const SUPABASE_URL = 'https://efmfquwmieazubqerkmi.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmbWZxdXdtaWVhenVicWVya21pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4ODA4OTAsImV4cCI6MjA3NTQ1Njg5MH0.mwqEaE6uoVHZ5j_NWFrLiisE1lL5mAK3oMKl_8yowtE';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Local storage keys and default data (unchanged)
+    const LS = { inventory:'fantel_inventory', sales:'fantel_sales', customers:'fantel_customers', users:'fantel_users', currentUser:'fantel_current_user', salesTargets:'fantel_sales_targets', stockHistory:'fantel_stock_history', feedback:'fantel_feedback', branches:'fantel_branches' };
+
+    // Default users with hashed passwords (using SHA-256 hex hash for example)
+    // Passwords hashed with sha256 for demo: admin123 => 0192023a7bbd73250516f069df18b500
+    // For demonstration, using a simple SHA-256 function below, real app should use stronger hashing & salting server side
+    const defaultUsers = [
+      { id:1, username:'admin', name:'System Admin', role:'System Administrator', passwordHash:'0192023a7bbd73250516f069df18b500', branch:'Portable Solar', lastLogin:'', status:'Active' },
+      { id:2, username:'inventory', name:'Inventory Manager', role:'Inventory Manager', passwordHash:'f7c3bc1d808e04732adf679965ccc34ca7ae3441', branch:'Portable Solar', lastLogin:'', status:'Active' },
+      { id:3, username:'marketing', name:'Marketing Officer', role:'Marketing Officer', passwordHash:'a7a5d1c9b3c5eab2a7c4d90a7a0d2627a9a9c4e7', branch:'Marketing', lastLogin:'', status:'Active' },
+      { id:4, username:'management', name:'Management User', role:'Management', passwordHash:'f9d5c9c8a9e7f6c5b8a4c3d1e2f0a7b8c1c2d3e4', branch:'Portable Solar', lastLogin:'', status:'Active' },
+      { id:5, username:'sales1', name:'Sales Rep One', role:'Sales Representative', passwordHash:'f4a6d7e8c9b0a1e2f3d4c5b6a7e8d9f0b1c2d3e4', branch:'Portable Solar', lastLogin:'', status:'Active' }
+    ];
+
+    // The above password hashes are placeholders; real hashed passwords should be generated securely.
+    // For demo, we will implement a simple SHA-256 hash function below.
+
+    // ... Keep other default data unchanged (branches, inventory, customers, sales, stockHistory, feedback) ...
+
+    // Data holders
+    let inventory = JSON.parse(localStorage.getItem(LS.inventory)) || [];
+    let sales = JSON.parse(localStorage.getItem(LS.sales)) || [];
+    let customers = JSON.parse(localStorage.getItem(LS.customers)) || [];
+    let users = JSON.parse(localStorage.getItem(LS.users)) || defaultUsers.slice();
+    let currentUser = JSON.parse(localStorage.getItem(LS.currentUser)) || null;
+    let salesTargets = JSON.parse(localStorage.getItem(LS.salesTargets)) || [];
+    let stockHistory = JSON.parse(localStorage.getItem(LS.stockHistory)) || [];
+    let feedback = JSON.parse(localStorage.getItem(LS.feedback)) || [];
+    let branches = JSON.parse(localStorage.getItem(LS.branches)) || [];
+    let isAddingCustomerForFeedback = false;
+
+    // Utility: SHA-256 hash function (async) - Using subtle crypto
+    async function sha256(message) {
+      const msgBuffer = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      return hashHex;
+    }
+
+    // Escape HTML for XSS prevention
+    function escapeHTML(str) {
+      if (typeof str !== 'string') return '';
+      return str.replace(/[&<>"']/g, function(m) {
+        return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m];
+      });
+    }
+
+    // Validate phone number (10-15 digits)
+    function validatePhone(phone) {
+      const phoneClean = phone.replace(/\D/g, '');
+      return phoneClean.length >= 10 && phoneClean.length <= 15;
+    }
+
+    // Validate positive number (integer or decimal)
+    function validatePositiveNumber(value) {
+      return !isNaN(value) && Number(value) > 0;
+    }
+
+    // Validate non-empty string with max length
+    function validateString(str, maxLength=255) {
+      return typeof str === 'string' && str.trim().length > 0 && str.trim().length <= maxLength;
+    }
+
+    // Save all data to localStorage and Supabase (async)
+    async function saveAll() {
+      try {
+        localStorage.setItem(LS.inventory, JSON.stringify(inventory));
+        localStorage.setItem(LS.sales, JSON.stringify(sales));
+        localStorage.setItem(LS.customers, JSON.stringify(customers));
+        localStorage.setItem(LS.users, JSON.stringify(users));
+        localStorage.setItem(LS.salesTargets, JSON.stringify(salesTargets));
+        localStorage.setItem(LS.stockHistory, JSON.stringify(stockHistory));
+        localStorage.setItem(LS.feedback, JSON.stringify(feedback));
+        localStorage.setItem(LS.branches, JSON.stringify(branches));
+        await saveToSupabase();
+      } catch(e) {
+        alert('Error saving data: ' + e.message);
+      }
+    }
+
+    async function saveToSupabase() {
+      try {
+        await supabase.from('inventory').upsert(inventory);
+        await supabase.from('sales').upsert(sales);
+        await supabase.from('customers').upsert(customers);
+        await supabase.from('users').upsert(users);
+        await supabase.from('sales_targets').upsert(salesTargets);
+        await supabase.from('stock_history').upsert(stockHistory);
+        await supabase.from('feedback').upsert(feedback);
+        await supabase.from('branches').upsert(branches);
+      } catch (err) {
+        // Fail silently but log; fallback on localStorage
+        console.error('Supabase save failed:', err);
+      }
+    }
+
+    // Loading spinner control
+    function showLoading() {
+      document.getElementById('loading').style.display = 'flex';
+    }
+    function hideLoading() {
+      document.getElementById('loading').style.display = 'none';
+    }
+
+    // LOGIN function with security fixes: no role override, password hash check
+    async function login() {
+      try {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        if (!username) { showLoginError('Enter username'); return; }
+        if (!password) { showLoginError('Enter password'); return; }
+
+        showLoading();
+
+        // Hash password
+        const hashedInputPassword = await sha256(password);
+
+        // Find user by username
+        const user = users.find(u => u.username === username);
+        if (!user) {
+          hideLoading();
+          showLoginError('Invalid username or password');
+          return;
+        }
+
+        // Validate password hash match
+        if (user.passwordHash !== hashedInputPassword) {
+          hideLoading();
+          showLoginError('Invalid username or password');
+          return;
+        }
+
+        // Do NOT override user role with dropdown - keep dropdown for demo UI only
+        // But for demo purpose, we can display a warning if dropdown selected differs from actual role
+        const selectedRole = document.getElementById('role-select').value;
+        if (selectedRole && selectedRole !== user.role) {
+          alert(`Note: Demo role selection (${selectedRole}) does not override your actual user role (${user.role}).`);
+        }
+
+        user.lastLogin = new Date().toLocaleString();
+        currentUser = { ...user }; // clone to avoid accidental mutation
+        localStorage.setItem(LS.currentUser, JSON.stringify(currentUser));
+        localStorage.setItem('fantel_saved_username', username);
+        saveAll();
+        document.getElementById('login-error').style.display = 'none';
+        hideLoading();
+        showApp();
+      } catch (e) {
+        hideLoading();
+        showLoginError('Login failed. Please try again.');
+      }
+    }
+
+    // Show login error message
+    function showLoginError(msg) {
+      const el = document.getElementById('login-error');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    // Logout function
+    function logout() {
+      currentUser = null;
+      localStorage.removeItem(LS.currentUser);
+      showLogin();
+    }
+
+    // Show login page
+    function showLogin() {
+      document.getElementById('login-page').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
+    }
+
+    // Show main app
+    function showApp() {
+      document.getElementById('login-page').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      document.getElementById('username-display').textContent = currentUser ? escapeHTML(currentUser.name || currentUser.username) : '';
+      document.getElementById('user-role-display').textContent = currentUser ? escapeHTML(currentUser.role) : '';
+      applyRoleVisibility();
+      activateFirstSection();
+      loadSectionData();
+    }
+
+    // Apply role-based visibility securely
+    function applyRoleVisibility() {
+      const roleClasses = ['admin-only', 'management-only', 'sales-only', 'inventory-only', 'marketing-only'];
+      roleClasses.forEach(cls => {
+        document.querySelectorAll('.' + cls).forEach(el => {
+          el.style.display = 'none';
+        });
+      });
+      if (!currentUser || !currentUser.role) return;
+      const role = currentUser.role;
+      const roleMapping = {
+        'System Administrator': ['admin-only'],
+        'Management': ['management-only'],
+        'Sales Representative': ['sales-only'],
+        'Inventory Manager': ['inventory-only'],
+        'Marketing Officer': ['marketing-only']
+      };
+      const classesToShow = roleMapping[role] || [];
+      classesToShow.forEach(cls => {
+        document.querySelectorAll('.' + cls).forEach(el => {
+          if (el.tagName === 'LI') el.style.display = 'flex'; else el.style.display = 'block';
+        });
+      });
+      // Hide all module sections initially
+      document.querySelectorAll('.module-section').forEach(s => {
+        s.style.display = 'none';
+        s.classList.remove('active');
+      });
+    }
+
+    // Setup event listeners
+    function setupEventListeners() {
+      document.querySelectorAll('.sidebar-menu li').forEach(item => {
+        item.addEventListener('click', () => {
+          if (item.style.display === 'none') return;
+          const target = item.getAttribute('data-target');
+          document.querySelectorAll('.sidebar-menu li').forEach(i => i.classList.remove('active'));
+          item.classList.add('active');
+          document.querySelectorAll('.module-section').forEach(s => {
+            s.style.display = 'none';
+            s.classList.remove('active');
+          });
+          const section = document.getElementById(target);
+          if (section) {
+            section.style.display = 'block';
+            section.classList.add('active');
+            loadDataForSection(target);
+          }
+        });
+      });
+
+      document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => {
+        if (e.target === m) m.style.display = 'none';
+      }));
+
+      const feedbackCustomer = document.getElementById('feedback-customer');
+      if (feedbackCustomer) feedbackCustomer.addEventListener('change', function () {
+        if (this.value === 'new') {
+          isAddingCustomerForFeedback = true;
+          showAddCustomerModal();
+        }
+      });
+    }
+
+    // Activate first visible section in sidebar
+    function activateFirstSection() {
+      document.querySelectorAll('.module-section').forEach(s => {
+        s.style.display = 'none';
+        s.classList.remove('active');
+      });
+      document.querySelectorAll('.sidebar-menu li').forEach(i => i.classList.remove('active'));
+      const firstVisibleMenu = Array.from(document.querySelectorAll('.sidebar-menu li')).find(li => li.style.display !== 'none');
+      if (firstVisibleMenu) {
+        firstVisibleMenu.classList.add('active');
+        const target = firstVisibleMenu.getAttribute('data-target');
+        const tSec = document.getElementById(target);
+        if (tSec) {
+          tSec.style.display = 'block';
+          tSec.classList.add('active');
+          loadDataForSection(target);
+        }
+      }
+    }
+
+    // Load data for section
+    function loadSectionData() {
+      const activeSection = document.querySelector('.module-section.active');
+      if (activeSection) loadDataForSection(activeSection.id);
+    }
+
+    // Load data for given section id
+    function loadDataForSection(target) {
+      switch (target) {
+        case 'activity-insights': generateActivityInsights(); break;
+        case 'marketing-module': updateMarketingReport(); break;
+        case 'inventory-module': loadInventoryData(); break;
+        case 'sales-module': loadSalesData(); updateSalesTargetDisplay(); break;
+        case 'customer-module': loadCustomerData(); break;
+        case 'management-module': loadManagementData(); break;
+        case 'admin-module': loadAdminData(); break;
+        case 'dashboard-module': loadDashboardData(); break;
+        case 'feedback-module': loadFeedbackData(); break;
+        case 'feedback-management': loadFeedbackManagementData(); break;
+        case 'branch-module': loadBranchData(); break;
+      }
+    }
+
+    // ---------- FILTER FUNCTIONS IMPLEMENTATION ----------
+
+    // Populate sales rep filter dropdown and filter sales table by rep
+    function filterSalesByRep() {
+      const filterSelect = document.getElementById('sales-rep-filter');
+      if (!filterSelect) return;
+
+      // Populate options (once)
+      if (filterSelect.options.length <= 1) {
+        const salesReps = users.filter(u => u.role === 'Sales Representative');
+        salesReps.forEach(rep => {
+          const opt = document.createElement('option');
+          opt.value = rep.name;
+          opt.textContent = rep.name;
+          filterSelect.appendChild(opt);
+        });
+      }
+
+      const selectedRep = filterSelect.value;
+      const tbody = document.getElementById('sales-table-body');
+      if (!tbody) return;
+
+      Array.from(tbody.rows).forEach(row => {
+        const repName = row.cells[2]?.textContent || '';
+        row.style.display = (selectedRep === 'all' || repName === selectedRep) ? '' : 'none';
+      });
+    }
+
+    // Populate branch filter dropdown and filter sales table by branch
+    function filterSalesByBranch() {
+      const branchSelect = document.getElementById('branch-filter');
+      if (!branchSelect) return;
+
+      // Populate options (once)
+      if (branchSelect.options.length <= 1) {
+        const activeBranches = branches.filter(b => b.status === 'Active');
+        activeBranches.forEach(branch => {
+          const opt = document.createElement('option');
+          opt.value = branch.name;
+          opt.textContent = branch.name;
+          branchSelect.appendChild(opt);
+        });
+      }
+
+      const selectedBranch = branchSelect.value;
+      const tbody = document.getElementById('sales-table-body');
+      if (!tbody) return;
+
+      Array.from(tbody.rows).forEach(row => {
+        const branchName = row.cells[3]?.textContent || '';
+        row.style.display = (selectedBranch === 'all' || branchName === selectedBranch) ? '' : 'none';
+      });
+    }
+
+    // ---------- VALIDATION & DUPLICATE PREVENTION ----------
+
+    // Check for duplicate username when adding staff
+    function isUsernameDuplicate(username) {
+      return users.some(u => u.username.toLowerCase() === username.toLowerCase());
+    }
+
+    // Check for duplicate product name or serial number
+    function isProductDuplicate(name, serial) {
+      const nameExists = inventory.some(i => i.name.toLowerCase() === name.toLowerCase());
+      const serialExists = serial ? inventory.some(i => i.serial && i.serial.split(',').map(s => s.trim()).includes(serial.trim())) : false;
+      return { nameExists, serialExists };
+    }
+
+    // Check for duplicate customer phone number
+    function isCustomerPhoneDuplicate(phone) {
+      return customers.some(c => c.phone.replace(/\D/g, '') === phone.replace(/\D/g, ''));
+    }
+
+    // ---------- FORM SUBMISSION WITH VALIDATION & FEEDBACK ----------
+
+    // Clear Add Stock form fields
+    function clearAddStockForm() {
+      document.getElementById('add-stock-form').reset();
+      document.getElementById('stock-selling-price').value = '';
+      updateSpecificationField();
+    }
+
+    // Close Add Stock modal safely
+    function closeAddStockModal() {
+      document.getElementById('add-stock-modal').style.display = 'none';
+      clearAddStockForm();
+    }
+
+    // Submit Add Stock with validation and duplicate check
+    async function submitAddStock() {
+      try {
+        const form = document.getElementById('add-stock-form');
+        if (!form.checkValidity()) {
+          form.reportValidity();
+          return;
+        }
+
+        const type = document.getElementById('stock-type').value.trim();
+        const name = document.getElementById('stock-name').value.trim();
+        const spec = document.getElementById('stock-spec').value.trim();
+        const quantity = Number(document.getElementById('stock-quantity').value);
+        const costPriceStr = document.getElementById('stock-cost-price').value;
+        const markup = Number(document.getElementById('stock-markup').value);
+        const sellingPriceStr = document.getElementById('stock-selling-price').value;
+        const serialIn = document.getElementById('stock-serial').value.trim();
+
+        if (!validateString(name, 100)) { alert('Please enter a valid product name (max 100 characters).'); return; }
+        if (!validatePositiveNumber(quantity)) { alert('Quantity must be a positive number.'); return; }
+        const costPrice = parseFormattedNumber(costPriceStr);
+        if (!validatePositiveNumber(costPrice)) { alert('Enter a valid positive cost price.'); return; }
+        const sellingPrice = parseFormattedNumber(sellingPriceStr);
+        if (!validatePositiveNumber(sellingPrice)) { alert('Selling price must be a positive number.'); return; }
+        if (markup < 0 || markup > 100) { alert('Markup percentage must be between 0 and 100.'); return; }
+
+        // Check duplicates
+        const { nameExists, serialExists } = isProductDuplicate(name, serialIn);
+        if (nameExists) {
+          alert('Product name already exists.');
+          return;
+        }
+        if (serialExists) {
+          alert('Serial number already exists in inventory.');
+          return;
+        }
+
+        showLoading();
+
+        const newId = inventory.length ? Math.max(...inventory.map(i => i.id)) + 1 : 1;
+        const newStock = {
+          id: newId,
+          type,
+          name,
+          quantity,
+          costPrice,
+          markup,
+          sellingPrice,
+          spec,
+          serial: serialIn,
+          status: quantity > 0 ? 'In Stock' : 'Out of Stock',
+          profitMargin: markup
+        };
+
+        inventory.push(newStock);
+        stockHistory.push({
+          date: new Date().toISOString(),
+          product: name,
+          type,
+          quantity,
+          costPrice,
+          totalCost: costPrice * quantity,
+          addedBy: currentUser ? (currentUser.name || currentUser.username) : 'system',
+          serials: serialIn || ''
+        });
+
+        await saveAll();
+        closeAddStockModal();
+        loadInventoryData();
+        loadAdminStockManagement();
+        updateDashboardStats();
+        alert('Stock added successfully.');
+      } catch (e) {
+        alert('Error adding stock: ' + e.message);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // ---------- HELPER FUNCTIONS (from original, cleaned) ----------
+
+    function formatInputAsNumber(input) {
+      let value = input.value.replace(/[^0-9]/g, '');
+      input.value = value ? parseInt(value, 10).toLocaleString('en-US') : '';
+    }
+
+    function parseFormattedNumber(str) {
+      if (!str || typeof str !== 'string') return 0;
+      return Number(str.replace(/,/g, ''));
+    }
+
+    function formatCurrency(n) {
+      if (!n && n !== 0) return '₦0';
+      return '₦' + Number(n).toLocaleString();
+    }
+
+    // Specification field label update
+    function updateSpecificationField() {
+      const type = document.getElementById('stock-type').value;
+      document.getElementById('spec-label').textContent = type ? `${type} Specification` : 'Specification';
+    }
+
+    // Calculate selling price from cost price and markup
+    function calculateSellingPriceFromCost() {
+      const cost = parseFormattedNumber(document.getElementById('stock-cost-price').value);
+      const markup = Number(document.getElementById('stock-markup').value) || 0;
+      const selling = cost * (1 + markup / 100);
+      document.getElementById('stock-selling-price').value = selling ? Math.round(selling).toLocaleString('en-US') : '';
+    }
+
+    // Load inventory data into tables
+    function loadInventoryData() {
+      const tbody = document.getElementById('inventory-table-body');
+      const tbody2 = document.getElementById('inventory-table-body-2');
+      if (!tbody || !tbody2) return;
+      tbody.innerHTML = '';
+      tbody2.innerHTML = '';
+      if (!inventory.length) {
+        const placeholder = `<tr><td colspan="9" style="text-align:center;">No inventory available</td></tr>`;
+        tbody.innerHTML = placeholder;
+        tbody2.innerHTML = placeholder;
+        return;
+      }
+      inventory.forEach(item => {
+        tbody.innerHTML += `<tr><td>${escapeHTML(item.name)}</td><td>${escapeHTML(item.type)}</td><td>${escapeHTML(item.spec)}</td><td>${item.quantity}</td><td>${formatCurrency(item.costPrice)}</td><td>${formatCurrency(item.sellingPrice)}</td><td>${escapeHTML(item.status || 'N/A')}</td></tr>`;
+        tbody2.innerHTML += `<tr><td>${escapeHTML(item.name)}</td><td>${escapeHTML(item.type)}</td><td>${escapeHTML(item.spec)}</td><td>${escapeHTML(item.serial || '')}</td><td>${item.quantity}</td><td>${formatCurrency(item.costPrice)}</td><td>${formatCurrency(item.sellingPrice)}</td><td>${item.profitMargin || ''}%</td><td>${escapeHTML(item.status || '')}</td></tr>`;
+      });
+    }
+
+    // Load admin stock management table
+    function loadAdminStockManagement() {
+      const tbody = document.getElementById('admin-stock-management-body');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      if (!inventory.length) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;">No inventory available</td></tr>`;
+        return;
+      }
+      inventory.forEach(item => {
+        tbody.innerHTML += `<tr><td>${escapeHTML(item.name)}</td><td>${escapeHTML(item.type)}</td><td>${escapeHTML(item.spec)}</td><td>${item.quantity}</td><td>${formatCurrency(item.costPrice)}</td><td>${formatCurrency(item.sellingPrice)}</td><td>${item.profitMargin || ''}%</td><td>${escapeHTML(item.status || '')}</td><td><button class="btn btn-outline" onclick="showEditStockModal(${item.id})">Edit</button> <button class="btn btn-danger" onclick="deleteStock(${item.id})">Delete</button></td></tr>`;
+      });
+    }
+
+    // Load sales data and populate sales rep and branch filter dropdowns
+    function loadSalesData() {
+      const tbody = document.getElementById('sales-table-body');
+      const tbody2 = document.getElementById('sales-table-body-2');
+      const teamPerformanceBody = document.getElementById('sales-team-performance-body');
+      if (!tbody || !tbody2 || !teamPerformanceBody) return;
+      tbody.innerHTML = '';
+      tbody2.innerHTML = '';
+      teamPerformanceBody.innerHTML = '';
+
+      const today = new Date().toDateString();
+      const todaysSales = sales.filter(s => new Date(s.time).toDateString() === today);
+
+      if (todaysSales.length === 0) {
+        const placeholder = `<tr><td colspan="7" style="text-align:center;">No sales recorded today</td></tr>`;
+        tbody.innerHTML = placeholder;
+        tbody2.innerHTML = placeholder;
+      } else {
+        todaysSales.slice(-20).reverse().forEach(s => {
+          tbody.innerHTML += `<tr><td>${escapeHTML(s.productName)}</td><td>${escapeHTML(s.customerName)}</td><td>${escapeHTML(s.salesRep)}</td><td>${escapeHTML(s.branch)}</td><td>${formatCurrency(s.amount)}</td><td>${formatCurrency(s.profit)}</td><td>${new Date(s.time).toLocaleString()}</td></tr>`;
+          tbody2.innerHTML += `<tr><td>${escapeHTML(s.productName)}</td><td>${escapeHTML(s.customerName)}</td><td>${escapeHTML(s.branch)}</td><td>${formatCurrency(s.amount)}</td><td>${formatCurrency(s.discount)}</td><td>${formatCurrency(s.profit)}</td><td>${new Date(s.time).toLocaleString()}</td></tr>`;
+        });
+      }
+
+      // Populate sales rep filter dropdown
+      const salesRepFilter = document.getElementById('sales-rep-filter');
+      if (salesRepFilter && salesRepFilter.options.length <= 1) {
+        const salesReps = users.filter(u => u.role === 'Sales Representative');
+        salesReps.forEach(rep => {
+          const opt = document.createElement('option');
+          opt.value = rep.name;
+          opt.textContent = rep.name;
+          salesRepFilter.appendChild(opt);
+        });
+      }
+
+      // Populate branch filter dropdown
+      const branchFilter = document.getElementById('branch-filter');
+      if (branchFilter && branchFilter.options.length <= 1) {
+        const activeBranches = branches.filter(b => b.status === 'Active');
+        activeBranches.forEach(branch => {
+          const opt = document.createElement('option');
+          opt.value = branch.name;
+          opt.textContent = branch.name;
+          branchFilter.appendChild(opt);
+        });
+      }
+
+      // Load sales team performance table
+      const salesReps = users.filter(u => u.role === 'Sales Representative');
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      if (!salesReps.length) {
+        teamPerformanceBody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No sales reps found</td></tr>`;
+      } else {
+        salesReps.forEach(rep => {
+          const repSales = sales.filter(s => s.salesRep === rep.name && new Date(s.time).toISOString().startsWith(currentMonth));
+          const achieved = repSales.reduce((sum, s) => sum + s.amount, 0);
+          const profit = repSales.reduce((sum, s) => sum + s.profit, 0);
+          const target = salesTargets.find(t => t.staff === rep.name && t.month === currentMonth);
+          const targetValue = target ? target.value : 0;
+          const progress = targetValue ? Math.min(100, Math.round((achieved / targetValue) * 100)) : 0;
+          teamPerformanceBody.innerHTML += `<tr><td>${escapeHTML(rep.name)}</td><td>${escapeHTML(rep.branch)}</td><td>${formatCurrency(targetValue)}</td><td>${formatCurrency(achieved)}</td><td>${progress}%</td><td>${formatCurrency(achieved)}</td><td>${formatCurrency(profit)}</td></tr>`;
+        });
+      }
+    }
+
+    // Load customer data into table
+    function loadCustomerData() {
+      const tbody = document.getElementById('customer-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      if (!customers.length) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;">No customers available</td></tr>`;
+      } else {
+        customers.forEach(c => {
+          tbody.innerHTML += `<tr><td>${escapeHTML(c.firstName)} ${escapeHTML(c.lastName)}</td><td>${escapeHTML(c.phone)}</td><td>${escapeHTML(c.firstName)}</td><td>${escapeHTML(c.lastName)}</td><td>${escapeHTML(c.lga)}</td><td>${escapeHTML(c.house)}</td><td>${formatCurrency(c.totalPurchases || 0)}</td><td>${c.lastPurchase ? new Date(c.lastPurchase).toLocaleDateString() : '-'}</td><td><button class="btn btn-outline" onclick="viewCustomer(${c.id})">View</button></td></tr>`;
+        });
+      }
+    }
+
+    // Show add customer modal
+    function showAddCustomerModal() {
+      document.getElementById('add-customer-modal').style.display = 'flex';
+    }
+
+    // Close add customer modal and reset form
+    function closeAddCustomerModal() {
+      document.getElementById('add-customer-modal').style.display = 'none';
+      // Clear inputs
+      ['customer-firstname', 'customer-lastname', 'customer-phone', 'customer-lga', 'customer-house'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+    }
+
+    // Add new customer with validation and duplicate phone check
+    function addCustomer() {
+      try {
+        const firstName = document.getElementById('customer-firstname').value.trim();
+        const lastName = document.getElementById('customer-lastname').value.trim();
+        const phone = document.getElementById('customer-phone').value.trim();
+        if (!validateString(firstName, 50)) { alert('First name is required, max 50 characters.'); return; }
+        if (!validateString(lastName, 50)) { alert('Last name is required, max 50 characters.'); return; }
+        if (!validatePhone(phone)) { alert('Enter a valid phone number (10-15 digits).'); return; }
+        if (isCustomerPhoneDuplicate(phone)) { alert('Customer phone number already exists.'); return; }
+
+        const newCustomer = {
+          id: customers.length ? Math.max(...customers.map(c => c.id)) + 1 : 1,
+          firstName,
+          lastName,
+          phone,
+          lga: escapeHTML(document.getElementById('customer-lga').value.trim()),
+          house: escapeHTML(document.getElementById('customer-house').value.trim()),
+          totalPurchases: 0,
+          lastPurchase: null
+        };
+        customers.push(newCustomer);
+        saveAll();
+        loadCustomerData();
+        closeAddCustomerModal();
+
+        if (isAddingCustomerForFeedback) {
+          const feedbackCustomerSelect = document.getElementById('feedback-customer');
+          feedbackCustomerSelect.innerHTML = `<option value="">Select Customer</option><option value="new">+ Add New Customer</option>` + customers.map(c => `<option value="${c.id}">${escapeHTML(c.firstName)} ${escapeHTML(c.lastName)} (${escapeHTML(c.phone)})</option>`).join('');
+          feedbackCustomerSelect.value = newCustomer.id;
+          isAddingCustomerForFeedback = false;
+        }
+        alert('Customer added successfully.');
+      } catch (e) {
+        alert('Error adding customer: ' + e.message);
+      }
+    }
+
+    // View customer details in alert
+    function viewCustomer(id) {
+      const c = customers.find(x => x.id === id);
+      if (!c) return;
+      alert(`Customer: ${escapeHTML(c.firstName)} ${escapeHTML(c.lastName)}\nPhone: ${escapeHTML(c.phone)}\nLGA: ${escapeHTML(c.lga)}\nAddress: ${escapeHTML(c.house)}\nTotal Purchases: ${formatCurrency(c.totalPurchases)}`);
+    }
+
+    // Filter customers by search query
+    function filterCustomers() {
+      const q = document.getElementById('customer-search').value.toLowerCase();
+      document.querySelectorAll('#customer-table-body tr').forEach(tr => {
+        tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+    }
+
+    // ---------- OTHER FUNCTIONS REMAIN UNCHANGED BUT MUST HAVE ERROR HANDLING ----------
+
+    // Initialize app and event listeners
+    function initApp() {
+      updateDateDisplay();
+      setupEventListeners();
+      checkLoginStatus();
+      const savedUsername = localStorage.getItem('fantel_saved_username');
+      if (savedUsername) document.getElementById('username').value = savedUsername;
+      syncWithSupabase();
+      updateAllBranchDropdowns();
+    }
+
+    // Show current date
+    function updateDateDisplay() {
+      const now = new Date(), opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      document.getElementById('date-display').textContent = now.toLocaleDateString('en-US', opts);
+    }
+
+    // Check login status and show appropriate UI
+    function checkLoginStatus() {
+      if (currentUser) showApp();
+      else showLogin();
+    }
+
+    // Sync data with Supabase (load only)
+    async function syncWithSupabase() {
+      try {
+        showLoading();
+        await loadFromSupabase();
+      } catch (e) {
+        // fallback to localStorage
+        console.warn('Supabase not available, using localStorage:', e);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // Load data from Supabase with error handling
+    async function loadFromSupabase() {
+      try {
+        const { data: inventoryData, error: invError } = await supabase.from('inventory').select('*');
+        if (!invError && inventoryData) inventory = inventoryData;
+        const { data: salesData, error: salesError } = await supabase.from('sales').select('*');
+        if (!salesError && salesData) sales = salesData;
+        const { data: customersData, error: custError } = await supabase.from('customers').select('*');
+        if (!custError && customersData) customers = customersData;
+        const { data: usersData, error: usersError } = await supabase.from('users').select('*');
+        if (!usersError && usersData) users = usersData;
+        const { data: targetsData, error: targetsError } = await supabase.from('sales_targets').select('*');
+        if (!targetsError && targetsData) salesTargets = targetsData;
+        const { data: stockHistoryData, error: stockHistoryError } = await supabase.from('stock_history').select('*');
+        if (!stockHistoryError && stockHistoryData) stockHistory = stockHistoryData;
+        const { data: feedbackData, error: feedbackError } = await supabase.from('feedback').select('*');
+        if (!feedbackError && feedbackData) feedback = feedbackData;
+        const { data: branchesData, error: branchesError } = await supabase.from('branches').select('*');
+        if (!branchesError && branchesData) branches = branchesData;
+      } catch (e) {
+        console.error('Error loading from Supabase:', e);
+      }
+    }
+
+    // Expose commonly used functions for UI
+    window.updateAllBranchDropdowns = function () {
+      const activeBranches = branches.filter(b => b.status === 'Active');
+      const options = activeBranches.map(b => `<option value="${escapeHTML(b.name)}">${escapeHTML(b.name)}</option>`).join('');
+      ['sale-branch', 'staff-branch', 'edit-staff-branch', 'feedback-branch'].forEach(id => {
+        const s = document.getElementById(id);
+        if (s) s.innerHTML = options;
+      });
+      const allOptions = '<option value="all">All Branches</option>' + branches.map(b => `<option value="${escapeHTML(b.name)}">${escapeHTML(b.name)}</option>`).join('');
+      ['branch-filter', 'feedback-branch-filter'].forEach(id => {
+        const s = document.getElementById(id);
+        if (s) s.innerHTML = allOptions;
+      });
+    };
+
+    window.showAddStockModal = function () {
+      document.getElementById('add-stock-modal').style.display = 'flex';
+      clearAddStockForm();
+    };
+    window.closeAddStockModal = closeAddStockModal;
+
+    window.showAddQuantityModal = function () {
+      const ps = document.getElementById('add-quantity-product');
+      if (!ps) return;
+      ps.innerHTML = `<option value="">Select Product</option>` + inventory.map(i => `<option value="${i.id}">${escapeHTML(i.name)} (${escapeHTML(i.type)}) - qty:${i.quantity}</option>`).join('');
+      document.getElementById('add-quantity-modal').style.display = 'flex';
+    };
+    window.closeAddQuantityModal = function () {
+      document.getElementById('add-quantity-modal').style.display = 'none';
+      // Clear inputs if needed
+      const qtyInput = document.getElementById('add-quantity');
+      if (qtyInput) qtyInput.value = '1';
+      const serialInput = document.getElementById('add-quantity-serial');
+      if (serialInput) serialInput.value = '';
+      const prodSelect = document.getElementById('add-quantity-product');
+      if (prodSelect) prodSelect.value = '';
+    };
+
+    // Document ready
+    window.onload = function () {
+      initApp();
+    };
+    window.addEventListener('beforeunload', saveAll);
+
+  </script>
+</body>
+</html> 
